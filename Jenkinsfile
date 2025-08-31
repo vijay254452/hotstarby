@@ -6,6 +6,7 @@ pipeline {
             steps {
                 git 'https://github.com/Harsha6404/hotstarby.git'
                 sh 'pwd'
+                sh 'ls -l'
                 sh 'ls -R'
             }
         }
