@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/Harsha6404/java-project-maven-new.git'
+                git 'https://github.com/Harsha6404/hotstarby.git'
             }
         }
 
