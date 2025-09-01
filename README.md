@@ -1,3 +1,3 @@
-# hotstarby
-naa hotstar
+# hotstar
+hotstar made by me
 ....
