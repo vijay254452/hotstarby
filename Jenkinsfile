@@ -26,7 +26,7 @@ pipeline {
                           -Dsonar.projectVersion=1.0 \
                           -Dsonar.sources=src \
                           -Dsonar.java.binaries=target \
-                          -Dsonar.host.url=http://http://13.203.47.55/:9000 \
+                          -Dsonar.host.url=http://13.203.47.55/:9000 \
                           -Dsonar.login=sonar
                     '''
                 }
