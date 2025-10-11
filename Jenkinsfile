@@ -2,20 +2,23 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven3'   // Name from Jenkins configuration
-        jdk 'Java17'     // Ensure JDK is configured in Jenkins
+        maven 'Maven3'           // Name of Maven configured in Jenkins
+        jdk 'Java17'             // Name of JDK configured in Jenkins
+        sonarScanner 'SonarScanner' // Name of SonarScanner configured in Jenkins
     }
 
     environment {
-        SONARQUBE_SERVER = 'sonar'  // SonarQube server name in Jenkins
-        SONAR_HOST_URL = 'http://13.203.47.55:9000'
-        SONAR_TOKEN = credentials('SONAR_TOKEN') // Jenkins secret text credentials
+        SONARQUBE_SERVER = 'sonar'                 // Name of SonarQube server configured in Jenkins
+        SONAR_HOST_URL = 'http://13.203.47.55:9000' // SonarQube URL
+        SONAR_TOKEN = credentials('SONAR_TOKEN')   // Jenkins secret text credentials
+        IMAGE_NAME = 'vijay3247/hotstar'           // Docker image name
     }
 
     stages {
 
         stage('Checkout SCM') {
             steps {
+                echo "Checking out code from GitHub..."
                 git branch: 'main', url: 'https://github.com/vijay254452/hotstarby.git'
             }
         }
@@ -32,7 +35,7 @@ pipeline {
                 echo "Running SonarQube code analysis..."
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
                     sh """
-                    sonar-scanner \
+                        sonar-scanner \
                         -Dsonar.projectKey=hotstar-project \
                         -Dsonar.projectName=Hotstar \
                         -Dsonar.projectVersion=1.0 \
@@ -47,6 +50,7 @@ pipeline {
 
         stage('Quality Gate') {
             steps {
+                echo "Waiting for SonarQube Quality Gate result..."
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
@@ -55,19 +59,22 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t vijay3247/hotstar:latest .'
+                echo "Building Docker image..."
+                sh "docker build -t ${IMAGE_NAME}:latest ."
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh 'docker run -d -p 3247:8080 vijay3247/hotstar:latest'
+                echo "Deploying Docker container..."
+                sh "docker run -d -p 3247:8080 ${IMAGE_NAME}:latest"
             }
         }
 
         stage('Docker Swarm Deploy') {
             steps {
-                sh 'docker stack deploy -c docker-compose.yml hotstar-stack'
+                echo "Deploying to Docker Swarm..."
+                sh "docker stack deploy -c docker-compose.yml hotstar-stack"
             }
         }
     }
