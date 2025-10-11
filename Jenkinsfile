@@ -2,93 +2,81 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_ENV = 'sonar'             // Jenkins SonarQube server name (configured in Manage Jenkins → System)
-        SCANNER_HOME = tool 'SonarScanner'  // SonarQube Scanner tool name (configured in Manage Jenkins → Tools)
+        SONARQUBE_SERVER = 'sonar'  // Name of SonarQube server in Jenkins
+        SONAR_HOST_URL = 'http://13.203.47.55:9000'
+        SONAR_TOKEN = credentials('SONAR_TOKEN') // Jenkins credentials ID
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Checkout SCM') {
             steps {
                 echo "Checking out code from GitHub..."
                 git branch: 'main', url: 'https://github.com/vijay254452/hotstarby.git'
-                sh 'pwd && ls -l'
+            }
+        }
+
+        stage('Build WAR') {
+            steps {
+                echo "Building project..."
+                sh 'mvn clean package'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 echo "Running SonarQube code analysis..."
-                withSonarQubeEnv("${SONARQUBE_ENV}") {
-                    sh '''
-                        ${SCANNER_HOME}/bin/sonar-scanner \
-                          -Dsonar.projectKey=hotstar-project \
-                          -Dsonar.projectName=Hotstar \
-                          -Dsonar.projectVersion=1.0 \
-                          -Dsonar.sources=src \
-                          -Dsonar.java.binaries=target \
-                          -Dsonar.host.url=http://13.203.47.55:9000 \
-                          -Dsonar.login=squ_b4bd7872846c55230832e91611735262b748fc31
-                    '''
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                    sh """
+                    sonar-scanner \
+                      -Dsonar.projectKey=hotstar-project \
+                      -Dsonar.projectName=Hotstar \
+                      -Dsonar.projectVersion=1.0 \
+                      -Dsonar.sources=src \
+                      -Dsonar.java.binaries=target/classes \
+                      -Dsonar.host.url=${SONAR_HOST_URL} \
+                      -Dsonar.token=${SONAR_TOKEN}
+                    """
                 }
             }
         }
 
         stage('Quality Gate') {
             steps {
-                echo "Waiting for SonarQube quality gate result..."
-                timeout(time: 2, unit: 'MINUTES') {
+                timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
-            }
-        }
-
-        stage('Build WAR') {
-            steps {
-                echo "Building Maven WAR package..."
-                sh 'mvn clean package'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image..."
-                sh '''
-                    docker rmi -f hotstar:v1 || true
-                    docker build -t hotstar:v1 -f /var/lib/jenkins/workspace/hotsatr/Dockerfile /var/lib/jenkins/workspace/hotsatr
-                '''
+                sh 'docker build -t vijay3247/hotstar:latest .'
             }
         }
 
         stage('Deploy Container') {
             steps {
-                echo "Deploying container locally..."
-                sh '''
-                    docker rm -f con8 || true
-                    docker run -d --name con8 -p 8008:8080 hotstar:v1
-                '''
+                echo "Deploying Docker container..."
+                sh 'docker run -d -p 3247:8080 vijay3247/hotstar:latest'
             }
         }
 
         stage('Docker Swarm Deploy') {
             steps {
-                echo "Deploying on Docker Swarm..."
-                sh '''
-                    docker service update --image hotstar:v1 hotstarserv || \
-                    docker service create --name hotstarserv -p 8009:8080 --replicas=10 hotstar:v1
-                '''
+                echo "Deploying via Docker Swarm..."
+                sh 'docker stack deploy -c docker-compose.yml hotstar-stack'
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline executed successfully!"
+            echo "🏁 Pipeline completed successfully!"
         }
         failure {
             echo "❌ Pipeline failed! Check logs above for errors."
-        }
-        always {
-            echo "🏁 Pipeline completed!"
         }
     }
 }
