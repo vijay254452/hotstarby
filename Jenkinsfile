@@ -2,17 +2,18 @@ pipeline {
     agent any
 
     environment {
-        SONAR_TOKEN = credentials('SONAR_TOKEN') // Jenkins credential ID
-        IMAGE_NAME = 'vijay3247/restaurant-site'
+        // SonarQube token stored in Jenkins Credentials
+        SONAR_TOKEN = credentials('SONAR_TOKEN')
+        DOCKER_IMAGE = "vijay3247/myapp:latest"
     }
 
     tools {
-        maven 'Maven3' // Name of Maven configured in Jenkins
-        dockerTool 'Docker' // Optional if using Docker plugin
+        maven 'Maven3' // Name of Maven configured in Jenkins Global Tool Config
+        jdk 'Java17'   // Name of JDK configured in Jenkins Global Tool Config
+        // Note: SonarScanner should also be configured in Jenkins Tools if needed
     }
 
     stages {
-
         stage('Checkout SCM') {
             steps {
                 echo "Checking out code from GitHub..."
@@ -29,25 +30,25 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo "Running SonarQube analysis in Docker..."
-                sh """
-                docker run --rm \
-                    -v ${WORKSPACE}:/usr/src \
-                    -w /usr/src \
-                    sonarsource/sonar-scanner-cli:latest \
-                    -Dsonar.projectKey=hotstar-project \
-                    -Dsonar.projectName=Hotstar \
-                    -Dsonar.projectVersion=1.0 \
-                    -Dsonar.sources=src \
-                    -Dsonar.java.binaries=target/classes \
-                    -Dsonar.host.url=http://13.203.47.55:9000 \
-                    -Dsonar.login=${SONAR_TOKEN}
-                """
+                echo "Running SonarQube analysis..."
+                withSonarQubeEnv('sonar') {
+                    sh """
+                        sonar-scanner \
+                        -Dsonar.projectKey=hotstar-project \
+                        -Dsonar.projectName=Hotstar \
+                        -Dsonar.projectVersion=1.0 \
+                        -Dsonar.sources=src \
+                        -Dsonar.java.binaries=target/classes \
+                        -Dsonar.host.url=http://13.203.47.55:9000 \
+                        -Dsonar.login=$SONAR_TOKEN
+                    """
+                }
             }
         }
 
         stage('Quality Gate') {
             steps {
+                echo "Checking SonarQube Quality Gate..."
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
@@ -56,23 +57,29 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:latest ."
+                echo "Building Docker image..."
+                sh "docker build -t $DOCKER_IMAGE ."
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh "docker run -d --name myapp -p 3247:8080 ${IMAGE_NAME}:latest"
+                echo "Deploying Docker container..."
+                sh """
+                    docker stop myapp || true
+                    docker rm myapp || true
+                    docker run -d --name myapp -p 3247:8080 $DOCKER_IMAGE
+                """
             }
         }
-
-        stage('Docker Swarm Deploy') {
-            steps {
-                sh 'docker stack deploy -c docker-compose.yml myapp-stack'
-            }
-        }
-
     }
 
     post {
-        always {
+        success {
+            echo "✅ Pipeline completed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed! Check logs above for errors."
+        }
+    }
+}
