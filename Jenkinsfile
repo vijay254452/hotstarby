@@ -27,7 +27,7 @@ pipeline {
                           -Dsonar.sources=src \
                           -Dsonar.java.binaries=target \
                           -Dsonar.host.url=http://13.203.47.55:9000 \
-                          -Dsonar.login=sonar
+                          -Dsonar.login=squ_b4bd7872846c55230832e91611735262b748fc31
                     '''
                 }
             }
