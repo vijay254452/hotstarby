@@ -1,16 +1,35 @@
 pipeline {
     agent any
 
+    environment {
+        SONARQUBE_ENV = 'sonar'            // Jenkins SonarQube server name
+        SCANNER_HOME = tool 'SonarScanner' // SonarQube Scanner tool name
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                // Checkout code from main branch
+                // Checkout code from GitHub
                 git branch: 'main', url: 'https://github.com/vijay254452/hotstarby.git'
-
-                // Verify files
                 sh 'pwd'
                 sh 'ls -l'
-                sh 'ls -R'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh '''
+                        ${SCANNER_HOME}/bin/sonar-scanner \
+                        -Dsonar.projectKey=hotstar-project \
+                        -Dsonar.projectName=Hotstar \
+                        -Dsonar.projectVersion=1.0 \
+                        -Dsonar.sources=src \
+                        -Dsonar.java.binaries=target \
+                        -Dsonar.host.url=http://<YOUR-SONARQUBE-SERVER>:9000 \
+                        -Dsonar.login=<YOUR_TOKEN>
+                    '''
+                }
             }
         }
 
@@ -45,6 +64,12 @@ pipeline {
                     docker service create --name hotstarserv -p 8009:8080 --replicas=10 hotstar:v1
                 '''
             }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline completed!"
         }
     }
 }
