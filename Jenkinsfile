@@ -1,86 +1,56 @@
 pipeline {
     agent any
-
-    environment {
-        SONAR_TOKEN = credentials('sonar-token') // Jenkins SonarQube token ID
+    
+     tools {
+        jdk 'Java17'         // JDK 17 installed and named "jdk-17"
+        maven 'Maven3'      // Maven 3 installed and named "maven-3"
     }
-
-    tools {
-        maven 'Maven3'  // Name of Maven installation in Jenkins
+    environment {
+        SONARQUBE_ENV = 'sonar' // replace with the name of your SonarQube server in Jenkins
     }
 
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
-                echo "Checking out code from GitHub..."
-                git branch: 'main', url: 'https://github.com/vijay254452/hotstarby.git'
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: 'https://github.com/Naveen1-6/HOTSTAR-Project.git']]
+                ])
             }
         }
 
-        stage('Build WAR') {
+        stage('Build') {
             steps {
-                echo "Building project with Maven..."
-                sh 'mvn clean package'
+                sh 'mvn clean install -DskipTests'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                script {
-                    echo "Running SonarQube analysis..."
-                    withSonarQubeEnv('sonar') {  // SonarQube server name in Jenkins
-                        def scannerHome = tool 'SonarScanner' // SonarScanner tool name
-                        sh """
-                            ${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=hotstar-project \
-                            -Dsonar.projectName=Hotstar \
-                            -Dsonar.projectVersion=1.0 \
-                            -Dsonar.sources=src \
-                            -Dsonar.java.binaries=target/classes \
-                            -Dsonar.host.url=http://13.203.47.55:9000 \
-                            -Dsonar.login=${SONAR_TOKEN}
-                        """
-                    }
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    sh 'mvn sonar:sonar -Dsonar.projectKey=hotstar-project -Dsonar.projectName="HOTSTAR Project"'
                 }
             }
         }
 
         stage('Quality Gate') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                script {
+                    timeout(time: 10, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
+                    }
                 }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                echo "Building Docker image..."
-                sh "docker build -t vijay3247/restaurant-site:latest ."
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                echo "Deploying Docker container..."
-                sh "docker run -d -p 3247:8080 vijay3247/restaurant-site:latest"
-            }
-        }
-
-        stage('Docker Swarm Deploy') {
-            steps {
-                echo "Deploying on Docker Swarm..."
-                sh "docker stack deploy -c docker-compose.yml myapp-stack"
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline completed successfully!"
+            echo "✅ Build and SonarQube analysis completed successfully!"
         }
         failure {
-            echo "❌ Pipeline failed! Check logs above for errors."
+            echo "❌ Pipeline failed. Check logs and SonarQube dashboard."
         }
     }
 }
