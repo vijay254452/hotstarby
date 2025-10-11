@@ -2,12 +2,11 @@ pipeline {
     agent any
 
     environment {
-        SONAR_TOKEN = credentials('sonar-token') // Replace with your Jenkins SonarQube token ID
+        SONAR_TOKEN = credentials('sonar-token') // Jenkins SonarQube token ID
     }
 
     tools {
-        maven 'Maven3'            // Name of Maven installation in Jenkins
-        // Note: SonarScanner will be invoked via 'tool' in the steps
+        maven 'Maven3'  // Name of Maven installation in Jenkins
     }
 
     stages {
@@ -29,8 +28,8 @@ pipeline {
             steps {
                 script {
                     echo "Running SonarQube analysis..."
-                    withSonarQubeEnv('sonar') {  // Name of your SonarQube server in Jenkins
-                        def scannerHome = tool 'SonarScanner'  // Name of SonarScanner in Jenkins Tools
+                    withSonarQubeEnv('sonar') {  // SonarQube server name in Jenkins
+                        def scannerHome = tool 'SonarScanner' // SonarScanner tool name
                         sh """
                             ${scannerHome}/bin/sonar-scanner \
                             -Dsonar.projectKey=hotstar-project \
@@ -76,4 +75,12 @@ pipeline {
         }
     }
 
-    pos
+    post {
+        success {
+            echo "✅ Pipeline completed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed! Check logs above for errors."
+        }
+    }
+}
