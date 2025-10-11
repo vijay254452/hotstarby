@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven3'           // Name of Maven configured in Jenkins
-        jdk 'Java17'             // Name of JDK configured in Jenkins
-        sonarScanner 'SonarScanner' // Name of SonarScanner configured in Jenkins
+        maven 'Maven3'       // Name of Maven configured in Jenkins
+        jdk 'Java17'         // Name of JDK configured in Jenkins
     }
 
     environment {
-        SONARQUBE_SERVER = 'sonar'                 // Name of SonarQube server configured in Jenkins
+        SONARQUBE_SERVER = 'sonar'                 // SonarQube server name in Jenkins
         SONAR_HOST_URL = 'http://13.203.47.55:9000' // SonarQube URL
         SONAR_TOKEN = credentials('SONAR_TOKEN')   // Jenkins secret text credentials
         IMAGE_NAME = 'vijay3247/hotstar'           // Docker image name
@@ -67,7 +66,7 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 echo "Deploying Docker container..."
-                sh "docker run -d -p 3247:8080 ${IMAGE_NAME}:latest"
+                sh "docker run -d -p 8080:8080 ${IMAGE_NAME}:latest"
             }
         }
 
@@ -84,7 +83,3 @@ pipeline {
             echo "🏁 Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Pipeline failed! Check logs above for errors."
-        }
-    }
-}
