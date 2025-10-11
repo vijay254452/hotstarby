@@ -38,4 +38,52 @@ pipeline {
                         -Dsonar.projectKey=hotstar-project \
                         -Dsonar.projectName=Hotstar \
                         -Dsonar.projectVersion=1.0 \
-                        -Dsonar.sourc
+                        -Dsonar.sources=src \
+                        -Dsonar.java.binaries=target/classes \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.token=${SONAR_TOKEN}
+                    """
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                echo "Waiting for SonarQube Quality Gate..."
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker image..."
+                sh "docker build -t ${IMAGE_NAME}:latest ."
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                echo "Running Docker container..."
+                sh "docker run -d -p 3247:8080 ${IMAGE_NAME}:latest"
+            }
+        }
+
+        stage('Docker Swarm Deploy') {
+            steps {
+                echo "Deploying to Docker Swarm..."
+                sh "docker stack deploy -c docker-compose.yml hotstar-stack"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "🏁 Pipeline completed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed! Check logs above for errors."
+        }
+    }
+}
